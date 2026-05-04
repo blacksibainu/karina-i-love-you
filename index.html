@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Любимая ❤️</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;1,300;1,600&family=Playfair+Display:ital,wght@0,400;1,400&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Lato',sans-serif}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+#vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,0.65) 100%)}
+#veil{position:fixed;inset:0;z-index:20;pointer-events:none;
+  background:#000;opacity:0;transition:opacity .75s ease}
+#veil.show{opacity:1}
+#content{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:1rem 2rem;
+  text-align:center;pointer-events:none}
+.theme-tag{font-size:.65rem;letter-spacing:.5em;text-transform:uppercase;
+  opacity:0;animation:fadeUp 1.8s .2s forwards;margin-bottom:2.2rem;
+  font-weight:300}
+#phrase-wrap{position:relative;width:100%;
+  height:clamp(4.5rem,11vw,7.5rem);display:flex;align-items:center;justify-content:center}
+.phrase{position:absolute;left:50%;top:50%;
+  font-family:'Dancing Script',cursive;font-size:clamp(2rem,6.5vw,4.8rem);
+  font-weight:700;line-height:1;white-space:nowrap;
+  transform:translate(-50%,-50%);
+  transition:opacity .7s ease,transform .7s ease}
+.phrase.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.phrase.hide-up{opacity:0;transform:translate(-50%,calc(-50% - 28px)) scale(1.06)}
+.phrase.hide-down{opacity:0;transform:translate(-50%,calc(-50% + 28px)) scale(.94)}
+.lang-tag{position:absolute;bottom:-1.6rem;font-size:.6rem;letter-spacing:.35em;
+  text-transform:uppercase;opacity:.4;transition:opacity .5s;font-weight:300}
+#karina{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+  font-size:clamp(3rem,11vw,7.5rem);line-height:1.1;letter-spacing:.03em;
+  opacity:0;animation:fadeUp 1.8s .7s forwards;margin-top:2.4rem}
+#qualities{font-family:'Playfair Display',serif;font-style:italic;
+  font-size:clamp(.75rem,1.8vw,1rem);line-height:2.2;opacity:0;
+  animation:fadeUp 1.8s 1.1s forwards;max-width:680px;margin-top:1.1rem}
+.qdot{opacity:.3;padding:0 .4em}
+#heart{font-size:1.3rem;opacity:0;
+  animation:fadeUp 1.8s 1.5s forwards,heartFloat 3.5s 3s infinite ease-in-out;
+  margin-top:1.1rem}
+#nav{position:fixed;bottom:1.8rem;left:50%;transform:translateX(-50%);
+  z-index:10;display:flex;gap:.8rem;pointer-events:all}
+.dot{width:7px;height:7px;border-radius:50%;cursor:pointer;
+  border:1.5px solid;transition:all .4s cubic-bezier(.34,1.56,.64,1);opacity:.35}
+.dot.on{opacity:1;transform:scale(1.65)}
+#hint{position:fixed;bottom:3.9rem;left:50%;transform:translateX(-50%);
+  font-size:.58rem;letter-spacing:.3em;text-transform:uppercase;
+  opacity:.22;z-index:10;white-space:nowrap;pointer-events:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes heartFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-7px) scale(1.1)}}
+@media(max-height:520px){#qualities,#heart{display:none}.theme-tag{margin-bottom:1rem}#karina{margin-top:1.2rem}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="veil"></div>
+<div id="content">
+  <div class="theme-tag" id="themeTag">Сакура</div>
+  <div id="phrase-wrap">
+    <div class="phrase show" id="pa">я люблю тебя</div>
+    <div class="phrase hide-down" id="pb"></div>
+    <div class="lang-tag" id="langTag">Русский</div>
+  </div>
+  <div id="karina">Любимая</div>
+  <div id="qualities">
+    Карие глаза, в которых отражается целая вселенная
+    <span class="qdot">·</span>
+    Шёлковые волосы, нежные как весенний ветер
+    <span class="qdot">·</span>
+    Ангельский голос, останавливающий время
+    <span class="qdot">·</span>
+    Улыбка, освещающая весь мир вокруг
+    <span class="qdot">·</span>
+    Неповторимая харизма и глубокая мудрость
+  </div>
+  <div id="heart">❤</div>
+</div>
+<div id="hint">← → или нажми · чтобы сменить тему</div>
+<div id="nav"></div>
+
+<script>
+'use strict';
+const PHRASES=[
+  {t:'я люблю тебя',l:'Русский'},{t:'I love you',l:'English'},
+  {t:"Je t'aime",l:'Français'},{t:'Te amo',l:'Español'},
+  {t:'Ti amo',l:'Italiano'},{t:'Ich liebe dich',l:'Deutsch'},
+  {t:'愛してる',l:'日本語'},{t:'사랑해',l:'한국어'},
+  {t:'我爱你',l:'中文'},{t:'أحبك',l:'العربية'},
+  {t:'Eu te amo',l:'Português'},{t:'Σε αγαπώ',l:'Ελληνικά'},
+  {t:'Seni seviyorum',l:'Türkçe'},{t:'Kocham cię',l:'Polski'},
+  {t:'Ik hou van je',l:'Nederlands'},{t:'Jag älskar dig',l:'Svenska'},
+  {t:'Rakastan sinua',l:'Suomi'},{t:'Szeretlek',l:'Magyar'},
+  {t:'Te iubesc',l:'Română'},{t:'Я тебе кохаю',l:'Українська'},
+  {t:'Nakupenda',l:'Kiswahili'},{t:'ฉันรักคุณ',l:'ภาษาไทย'},
+  {t:'Anh yêu em',l:'Tiếng Việt'},{t:'Miluji tě',l:'Čeština'},
+  {t:'دوستت دارم',l:'فارسی'},{t:'אני אוהב אותך',l:'עברית'},
+  {t:'Aku mencintaimu',l:'Bahasa Indonesia'},
+  {t:'मैं तुमसे प्यार करता हूँ',l:'हिन्दी'},
+  {t:'Volim te',l:'Hrvatski'},{t:'Mahal kita',l:'Filipino'},
+  {t:'Milujem ťa',l:'Slovenčina'},{t:'Mən səni sevirəm',l:'Azərbaycan'},
+  {t:'Я цябе кахаю',l:'Беларуская'},{t:'Ke a go rata',l:'Setswana'},
+  {t:'Ndikukunda',l:'Chichewa'},{t:'Seni söýýärin',l:'Türkmençe'},
+];
+
+const THEMES=[
+  {id:'sakura',  name:'Сакура',       bg:['#1a0d2e','#4a1060','#9e4080','#f08095','#ffc5d0'],tc:'#fff5f8',ac:'#ffd6e0',cnt:80},
+  {id:'autumn',  name:'Листопад',     bg:['#0f0500','#4a1500','#a04000','#e08000'],          tc:'#fff3e0',ac:'#ffcc88',cnt:60},
+  {id:'ocean',   name:'Волны',        bg:['#000d1a','#00204d','#003880','#0055aa'],          tc:'#e0f4ff',ac:'#80d4ff',cnt:80},
+  {id:'stars',   name:'Звёзды',       bg:['#000008','#04041a','#08082e','#0c0c42'],          tc:'#fffff8',ac:'#fffacd',cnt:180},
+  {id:'snow',    name:'Снегопад',     bg:['#2a4070','#4060a0','#6080c0','#90aae0'],          tc:'#ffffff',ac:'#e8f0ff',cnt:100},
+  {id:'firefly', name:'Светлячки',    bg:['#000800','#001000','#001a00','#002200'],          tc:'#e0ffe0',ac:'#ccff88',cnt:50},
+  {id:'roses',   name:'Розы',         bg:['#120008','#350020','#660040','#990060'],          tc:'#ffe0f0',ac:'#ff88cc',cnt:70},
+  {id:'aurora',  name:'Сияние',       bg:['#000810','#001020','#001830','#002040'],          tc:'#e0fff8',ac:'#80ffcc',cnt:6},
+];
+
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+let W,H,tick=0,particles=[],themeIdx=0,phraseIdx=0,activeSlot='a';
+
+function resize(){
+  W=canvas.width=window.innerWidth;
+  H=canvas.height=window.innerHeight;
+  initParticles(THEMES[themeIdx]);
+}
+window.addEventListener('resize',resize);
+
+/* ── Particle classes ── */
+class Petal{
+  constructor(cols,mn,mx){this.cols=cols;this.mn=mn;this.mx=mx;this.init(true)}
+  init(sp=false){
+    this.x=Math.random()*W; this.y=sp?Math.random()*H:-25;
+    this.sz=this.mn+Math.random()*(this.mx-this.mn);
+    this.vx=(Math.random()-.5)*1.2; this.vy=.6+Math.random()*1.2;
+    this.w=Math.random()*Math.PI*2; this.ws=.015+Math.random()*.025;
+    this.r=Math.random()*Math.PI*2; this.rs=(Math.random()-.5)*.04;
+    this.a=.5+Math.random()*.5; this.wr=.35+Math.random()*.4;
+    this.c=this.cols[Math.floor(Math.random()*this.cols.length)];
+  }
+  step(){
+    this.w+=this.ws; this.x+=this.vx+Math.sin(this.w)*.8;
+    this.y+=this.vy; this.r+=this.rs;
+    if(this.y>H+25)this.init();
+  }
+  draw(){
+    ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.r);
+    ctx.globalAlpha=this.a;ctx.fillStyle=this.c;
+    ctx.beginPath();ctx.ellipse(0,0,this.sz,this.sz*this.wr,0,0,Math.PI*2);
+    ctx.fill();ctx.restore();
+  }
+}
+
+class Leaf{
+  constructor(){this.init(true)}
+  init(sp=false){
+    this.x=Math.random()*W; this.y=sp?Math.random()*H:-30;
+    this.sz=8+Math.random()*14;
+    this.vx=(Math.random()-.5)*1.5; this.vy=.5+Math.random()*1;
+    this.w=Math.random()*Math.PI*2; this.ws=.01+Math.random()*.02;
+    this.r=Math.random()*Math.PI*2; this.rs=(Math.random()-.5)*.035;
+    this.a=.65+Math.random()*.35;
+    const c=['#e06000','#c04000','#a82000','#e09000','#d07000','#b84000'];
+    this.c=c[Math.floor(Math.random()*c.length)];
+  }
+  step(){
+    this.w+=this.ws; this.x+=this.vx+Math.sin(this.w)*1.2;
+    this.y+=this.vy; this.r+=this.rs;
+    if(this.y>H+30)this.init();
+  }
+  draw(){
+    ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.r);
+    ctx.globalAlpha=this.a;ctx.fillStyle=this.c;
+    ctx.beginPath();
+    ctx.moveTo(0,-this.sz);
+    ctx.bezierCurveTo(this.sz*.8,-this.sz*.3,this.sz*.6,this.sz*.5,0,this.sz);
+    ctx.bezierCurveTo(-this.sz*.6,this.sz*.5,-this.sz*.8,-this.sz*.3,0,-this.sz);
+    ctx.fill();ctx.restore();
+  }
+}
+
+class Bubble{
+  constructor(){this.init(true)}
+  init(sp=false){
+    this.x=Math.random()*W; this.y=sp?Math.random()*H:H+20;
+    this.r=2+Math.random()*6;
+    this.vy=-(0.4+Math.random()*1.2);
+    this.w=Math.random()*Math.PI*2; this.ws=.02+Math.random()*.03;
+    this.a=.08+Math.random()*.2;
+  }
+  step(){
+    this.w+=this.ws; this.x+=Math.sin(this.w)*.8;
+    this.y+=this.vy; if(this.y<-20)this.init();
+  }
+  draw(){
+    ctx.save();ctx.globalAlpha=this.a;ctx.strokeStyle='#a0d8ef';
+    ctx.lineWidth=1;ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.stroke();ctx.restore();
+  }
+}
+
+class StarP{
+  constructor(){this.init(true);this.shooting=false}
+  init(sp=false){
+    this.x=Math.random()*W; this.y=sp?Math.random()*H:Math.random()*H;
+    this.r=.4+Math.random()*2; this.base=.3+Math.random()*.7;
+    this.p=Math.random()*Math.PI*2; this.ps=.015+Math.random()*.04;
+  }
+  step(){
+    this.p+=this.ps;
+    if(!this.shooting&&Math.random()<.0006)this.shoot();
+    if(this.shooting){
+      this.trail.unshift({x:this.x,y:this.y});
+      if(this.trail.length>25)this.trail.pop();
+      this.x+=this.svx; this.y+=this.svy;
+      if(this.x>W+60||this.y>H+60){this.shooting=false;this.x=Math.random()*W;this.y=Math.random()*H*.4;this.trail=[];}
+    }
+  }
+  shoot(){
+    this.shooting=true;this.svx=4+Math.random()*6;this.svy=1+Math.random()*3;
+    this.trail=[];
+  }
+  draw(){
+    const a=this.base*(0.5+0.5*Math.sin(this.p));
+    ctx.save();
+    if(this.shooting&&this.trail.length>1){
+      ctx.strokeStyle='#fffacd';ctx.lineWidth=1.5;ctx.beginPath();
+      ctx.moveTo(this.x,this.y);
+      for(let i=0;i<this.trail.length;i++){
+        ctx.globalAlpha=a*(1-i/this.trail.length)*.6;
+        ctx.lineTo(this.trail[i].x,this.trail[i].y);
+      }
+      ctx.stroke();ctx.globalAlpha=a;
+    }else{ctx.globalAlpha=a;}
+    ctx.fillStyle='#fffacd';ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+class Snowflake{
+  constructor(){this.init(true)}
+  init(sp=false){
+    this.x=Math.random()*W; this.y=sp?Math.random()*H:-10;
+    this.r=2+Math.random()*5; this.vy=.4+Math.random()*.9;
+    this.w=Math.random()*Math.PI*2; this.ws=.008+Math.random()*.015;
+    this.a=.4+Math.random()*.6; this.rot=Math.random()*Math.PI*2;
+  }
+  step(){
+    this.w+=this.ws; this.x+=Math.sin(this.w)*.5;
+    this.y+=this.vy; if(this.y>H+10)this.init();
+  }
+  draw(){
+    ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.rot);
+    ctx.globalAlpha=this.a;ctx.strokeStyle='#fff';ctx.lineWidth=.8;
+    for(let i=0;i<6;i++){
+      ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,this.r);
+      ctx.moveTo(0,this.r*.35);ctx.lineTo(this.r*.22,this.r*.6);
+      ctx.moveTo(0,this.r*.35);ctx.lineTo(-this.r*.22,this.r*.6);
+      ctx.stroke();ctx.rotate(Math.PI/3);
+    }
+    ctx.restore();
+  }
+}
+
+class Firefly{
+  constructor(){this.init(true)}
+  init(sp=false){
+    this.x=Math.random()*W; this.y=sp?Math.random()*H:Math.random()*H;
+    this.r=2+Math.random()*2.5;
+    this.vx=(Math.random()-.5)*.7; this.vy=(Math.random()-.5)*.7;
+    this.p=Math.random()*Math.PI*2; this.ps=.02+Math.random()*.04;
+    this.ct=80+Math.random()*120; this.base=.5+Math.random()*.5;
+  }
+  step(){
+    this.p+=this.ps; this.ct--;
+    if(this.ct<=0){this.vx=(Math.random()-.5)*.7;this.vy=(Math.random()-.5)*.7;this.ct=80+Math.random()*120;}
+    this.x+=this.vx; this.y+=this.vy;
+    if(this.x<0)this.x=W; if(this.x>W)this.x=0;
+    if(this.y<0)this.y=H; if(this.y>H)this.y=0;
+  }
+  draw(){
+    const a=this.base*(0.4+0.6*Math.sin(this.p));
+    ctx.save();
+    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.r*8);
+    g.addColorStop(0,`rgba(160,255,80,${a*.9})`);
+    g.addColorStop(.4,`rgba(80,220,40,${a*.4})`);
+    g.addColorStop(1,'rgba(0,80,0,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(this.x,this.y,this.r*8,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=a;ctx.fillStyle='#e0ff80';
+    ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+class Aurora{
+  constructor(i){
+    this.i=i;
+    const pal=[['#00ff88','#00dd66'],['#00ccff','#0088dd'],['#7700ff','#5500cc'],
+               ['#ff00bb','#cc0088'],['#00ffcc','#00ccaa'],['#88ff00','#66cc00']];
+    const p=pal[i%pal.length];this.c1=p[0];this.c2=p[1];
+    this.y=H*(0.08+Math.random()*.45);
+    this.amp=40+Math.random()*80; this.freq=.003+Math.random()*.004;
+    this.phase=Math.random()*Math.PI*2; this.speed=.004+Math.random()*.008;
+    this.width=35+Math.random()*70; this.a=.25+Math.random()*.35;
+  }
+  step(){this.phase+=this.speed;}
+  draw(){
+    ctx.save();ctx.globalAlpha=this.a*.7;
+    const g=ctx.createLinearGradient(0,this.y-this.width,0,this.y+this.width);
+    g.addColorStop(0,'transparent');g.addColorStop(.35,this.c1+'55');
+    g.addColorStop(.5,this.c1+'cc');g.addColorStop(.65,this.c2+'55');
+    g.addColorStop(1,'transparent');ctx.fillStyle=g;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=4){
+      const y=this.y-this.width*.5+this.amp*Math.sin(this.freq*x+this.phase);
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    for(let x=W;x>=0;x-=4){
+      const y=this.y+this.width*.5+this.amp*Math.sin(this.freq*x+this.phase+.5);
+      ctx.lineTo(x,y);
+    }
+    ctx.closePath();ctx.fill();ctx.restore();
+  }
+}
+
+/* ── Init particles ── */
+function initParticles(th){
+  switch(th.id){
+    case'sakura':
+      particles=Array.from({length:th.cnt},()=>new Petal(['#ffb7c5','#ff9eb5','#ffc5d0','#ff85a0','#ffe0e8'],4,10));break;
+    case'autumn':
+      particles=Array.from({length:th.cnt},()=>new Leaf());break;
+    case'ocean':
+      particles=Array.from({length:th.cnt},()=>new Bubble());break;
+    case'stars':
+      particles=Array.from({length:th.cnt},()=>new StarP());break;
+    case'snow':
+      particles=Array.from({length:th.cnt},()=>new Snowflake());break;
+    case'firefly':
+      particles=Array.from({length:th.cnt},()=>new Firefly());break;
+    case'roses':
+      particles=Array.from({length:th.cnt},()=>new Petal(['#cc0033','#aa0022','#dd1144','#ff2255','#880022','#ff4466'],6,14));break;
+    case'aurora':
+      particles=Array.from({length:th.cnt},(_,i)=>new Aurora(i));break;
+    default:particles=[];
+  }
+}
+
+/* ── Background ── */
+function drawBg(th){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  th.bg.forEach((c,i)=>g.addColorStop(i/(th.bg.length-1),c));
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(th.id==='ocean'){
+    for(let i=4;i>=0;i--){
+      const baseY=H*(.45+i*.1),amp=18-i*2,freq=.006+i*.002,spd=.018+i*.008;
+      ctx.save();ctx.globalAlpha=.07+i*.03;ctx.fillStyle='#4fc3f7';
+      ctx.beginPath();ctx.moveTo(0,H);
+      for(let x=0;x<=W;x+=3)ctx.lineTo(x,baseY+amp*Math.sin(freq*x+tick*spd));
+      ctx.lineTo(W,H);ctx.closePath();ctx.fill();ctx.restore();
+    }
+  }
+}
+
+/* ── Render loop ── */
+function frame(){
+  tick++;const th=THEMES[themeIdx];
+  ctx.clearRect(0,0,W,H);drawBg(th);
+  particles.forEach(p=>{p.step();p.draw();});
+  requestAnimationFrame(frame);
+}
+
+/* ── Apply colors ── */
+function applyColors(th){
+  const tc=th.tc,ac=th.ac;
+  ['themeTag','langTag'].forEach(id=>document.getElementById(id).style.color=tc);
+  document.getElementById('pa').style.color=tc;
+  document.getElementById('pb').style.color=tc;
+  const k=document.getElementById('karina');
+  k.style.color=tc;k.style.textShadow=`0 0 40px ${ac}55,0 0 80px ${ac}33`;
+  document.getElementById('qualities').style.color=tc;
+  document.getElementById('heart').style.color=ac;
+  document.getElementById('hint').style.color=tc;
+  document.getElementById('themeTag').textContent=th.name;
+  document.querySelectorAll('.dot').forEach((d,i)=>{
+    d.style.borderColor=tc;
+    d.style.backgroundColor=i===themeIdx?tc:'transparent';
+    d.classList.toggle('on',i===themeIdx);
+  });
+}
+
+/* ── Phrase cycling ── */
+function nextPhrase(){
+  phraseIdx=(phraseIdx+1)%PHRASES.length;
+  const{t,l}=PHRASES[phraseIdx];
+  const inc=activeSlot==='a'?'b':'a';
+  const out=activeSlot;
+  const elIn=document.getElementById('p'+inc);
+  const elOut=document.getElementById('p'+out);
+  elIn.textContent=t;elIn.className='phrase hide-down';
+  void elIn.offsetWidth;
+  elOut.className='phrase hide-up';elIn.className='phrase show';
+  setTimeout(()=>document.getElementById('langTag').textContent=l,350);
+  activeSlot=inc;
+}
+
+/* ── Theme switch ── */
+function switchTo(idx){
+  if(idx===themeIdx)return;
+  const veil=document.getElementById('veil');
+  veil.classList.add('show');
+  setTimeout(()=>{
+    themeIdx=idx;initParticles(THEMES[themeIdx]);applyColors(THEMES[themeIdx]);
+    veil.classList.remove('show');
+  },750);
+}
+function next(){switchTo((themeIdx+1)%THEMES.length);}
+function prev(){switchTo((themeIdx-1+THEMES.length)%THEMES.length);}
+
+/* ── Nav dots ── */
+function buildNav(){
+  const nav=document.getElementById('nav');
+  THEMES.forEach((th,i)=>{
+    const d=document.createElement('div');
+    d.className='dot'+(i===0?' on':'');d.title=th.name;
+    d.onclick=()=>switchTo(i);nav.appendChild(d);
+  });
+}
+
+/* ── Events ── */
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' ')next();
+  if(e.key==='ArrowLeft')prev();
+});
+canvas.addEventListener('click',next);
+let tx=0;
+document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx;
+  if(Math.abs(dx)>50){dx<0?next():prev();}
+},{passive:true});
+
+/* ── Boot ── */
+resize();buildNav();applyColors(THEMES[0]);frame();
+setInterval(nextPhrase,3500);
+setInterval(next,20000);
+</script>
+</body>
+</html>
